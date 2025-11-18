@@ -58,7 +58,6 @@ const CartContent: React.FC = () => {
         <h1 className="text-[28px] md:text-[48px] font-bold text-black mb-8 md:mb-12">Shopping Cart</h1>
 
         {cart.length === 0 ? (
-          /* Empty Cart */}
           <div className="text-center py-12 md:py-20">
             <p className="text-[16px] md:text-[18px] text-black mb-6">Your cart is empty</p>
             <a
@@ -69,7 +68,6 @@ const CartContent: React.FC = () => {
             </a>
           </div>
         ) : (
-          /* Cart with Items */
           <div className="flex flex-col gap-8">
             {/* Cart Items */}
             <div className="flex flex-col gap-6">
