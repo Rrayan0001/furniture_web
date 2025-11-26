@@ -1,24 +1,39 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { supabase } from '@/lib/supabase';
 
 interface CartItem {
   id: string;
   name: string;
-  price: string;
+  price: string | number;
   image: string;
   quantity: number;
+}
+
+interface UserProfile {
+  first_name: string;
+  last_name: string;
+  phone: string;
+}
+
+interface UserAddress {
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
 }
 
 const CheckoutContent: React.FC = () => {
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
-  
+
   // Form data
   const [email, setEmail] = useState('');
   const [newsletter, setNewsletter] = useState(false);
-  
+
   // Delivery details
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -30,22 +45,62 @@ const CheckoutContent: React.FC = () => {
   const [country, setCountry] = useState('India');
 
   useEffect(() => {
-    // Load cart from localStorage
+    // Load cart
     const cartData = localStorage.getItem('cart');
     if (cartData) {
       const parsedCart = JSON.parse(cartData);
       setCart(parsedCart);
-      if (parsedCart.length === 0) {
-        router.push('/cart');
-      }
+      if (parsedCart.length === 0) router.push('/cart');
     } else {
       router.push('/cart');
     }
+
+    // Auto-fill user data
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setEmail(user.email || '');
+
+        // Fetch profile
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profile) {
+          const userProfile = profile as UserProfile;
+          setFirstName(userProfile.first_name || '');
+          setLastName(userProfile.last_name || '');
+          setPhone(userProfile.phone || '');
+        }
+
+        // Fetch default address
+        const { data: addressData } = await supabase
+          .from('user_addresses')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('is_default', true)
+          .single();
+
+        if (addressData) {
+          const userAddress = addressData as UserAddress;
+          setAddress(userAddress.address || '');
+          setCity(userAddress.city || '');
+          setState(userAddress.state || '');
+          setPincode(userAddress.pincode || '');
+          setCountry(userAddress.country || 'India');
+        }
+      }
+    };
+    checkUser();
   }, [router]);
 
   const getSubtotal = () => {
     const total = cart.reduce((sum, item) => {
-      const price = parseFloat(item.price.replace('$', ''));
+      const price = typeof item.price === 'string'
+        ? parseFloat(item.price.replace('$', ''))
+        : Number(item.price);
       return sum + price * item.quantity;
     }, 0);
     return total;
@@ -135,12 +190,12 @@ const CheckoutContent: React.FC = () => {
                     placeholder="Email address"
                     required
                     disabled={currentStep > 1}
+                    autoComplete="email"
                     className="w-full px-4 py-3 border border-gray-300 bg-white text-black text-[14px] focus:outline-none focus:border-black disabled:bg-gray-100"
                   />
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    You'll receive receipts and notifications at this email
-                  </p>
+                  {/* ... (rest of email form) */}
                 </div>
+                {/* ... (newsletter checkbox and continue button) */}
                 <div className="mb-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -178,6 +233,7 @@ const CheckoutContent: React.FC = () => {
                         onChange={(e) => setFirstName(e.target.value)}
                         required
                         disabled={currentStep > 2}
+                        autoComplete="given-name"
                         className="w-full px-4 py-3 border border-gray-300 bg-white text-black text-[14px] focus:outline-none focus:border-black disabled:bg-gray-100"
                       />
                     </div>
@@ -189,6 +245,7 @@ const CheckoutContent: React.FC = () => {
                         onChange={(e) => setLastName(e.target.value)}
                         required
                         disabled={currentStep > 2}
+                        autoComplete="family-name"
                         className="w-full px-4 py-3 border border-gray-300 bg-white text-black text-[14px] focus:outline-none focus:border-black disabled:bg-gray-100"
                       />
                     </div>
@@ -201,6 +258,7 @@ const CheckoutContent: React.FC = () => {
                       onChange={(e) => setPhone(e.target.value)}
                       required
                       disabled={currentStep > 2}
+                      autoComplete="tel"
                       className="w-full px-4 py-3 border border-gray-300 bg-white text-black text-[14px] focus:outline-none focus:border-black disabled:bg-gray-100"
                     />
                   </div>
@@ -213,42 +271,39 @@ const CheckoutContent: React.FC = () => {
                       placeholder="Street address"
                       required
                       disabled={currentStep > 2}
+                      autoComplete="address-line1"
                       className="w-full px-4 py-3 border border-gray-300 bg-white text-black text-[14px] focus:outline-none focus:border-black disabled:bg-gray-100"
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="text-[12px] text-gray-600 mb-2 block">CITY *</label>
-                      <input
-                        type="text"
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        required
-                        disabled={currentStep > 2}
-                        className="w-full px-4 py-3 border border-gray-300 bg-white text-black text-[14px] focus:outline-none focus:border-black disabled:bg-gray-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[12px] text-gray-600 mb-2 block">STATE *</label>
-                      <input
-                        type="text"
-                        value={state}
-                        onChange={(e) => setState(e.target.value)}
-                        required
-                        disabled={currentStep > 2}
-                        className="w-full px-4 py-3 border border-gray-300 bg-white text-black text-[14px] focus:outline-none focus:border-black disabled:bg-gray-100"
-                      />
-                    </div>
-                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="text-[12px] text-gray-600 mb-2 block">PINCODE *</label>
                       <input
                         type="text"
                         value={pincode}
-                        onChange={(e) => setPincode(e.target.value)}
+                        onChange={async (e) => {
+                          const val = e.target.value;
+                          setPincode(val);
+                          if (val.length === 6) {
+                            try {
+                              const res = await fetch(`https://api.postalpincode.in/pincode/${val}`);
+                              const data = await res.json();
+                              if (data[0].Status === 'Success') {
+                                const details = data[0].PostOffice[0];
+                                setCity(details.District);
+                                setState(details.State);
+                                setCountry(details.Country);
+                              }
+                            } catch (err) {
+                              console.error("Error fetching pincode details", err);
+                            }
+                          }
+                        }}
                         required
                         disabled={currentStep > 2}
+                        maxLength={6}
+                        autoComplete="postal-code"
                         className="w-full px-4 py-3 border border-gray-300 bg-white text-black text-[14px] focus:outline-none focus:border-black disabled:bg-gray-100"
                       />
                     </div>
@@ -260,6 +315,34 @@ const CheckoutContent: React.FC = () => {
                         onChange={(e) => setCountry(e.target.value)}
                         required
                         disabled={currentStep > 2}
+                        autoComplete="country-name"
+                        className="w-full px-4 py-3 border border-gray-300 bg-white text-black text-[14px] focus:outline-none focus:border-black disabled:bg-gray-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="text-[12px] text-gray-600 mb-2 block">CITY *</label>
+                      <input
+                        type="text"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        required
+                        disabled={currentStep > 2}
+                        autoComplete="address-level2"
+                        className="w-full px-4 py-3 border border-gray-300 bg-white text-black text-[14px] focus:outline-none focus:border-black disabled:bg-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[12px] text-gray-600 mb-2 block">STATE *</label>
+                      <input
+                        type="text"
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        required
+                        disabled={currentStep > 2}
+                        autoComplete="address-level1"
                         className="w-full px-4 py-3 border border-gray-300 bg-white text-black text-[14px] focus:outline-none focus:border-black disabled:bg-gray-100"
                       />
                     </div>
@@ -303,7 +386,7 @@ const CheckoutContent: React.FC = () => {
           {/* Right Column - Order Summary */}
           <div className="bg-gray-50 p-6 md:p-8 h-fit sticky top-24">
             <h2 className="text-[20px] font-bold text-black mb-6">Order Summary</h2>
-            
+
             {/* Cart Items */}
             <div className="flex flex-col gap-4 mb-6">
               {cart.map((item) => (
@@ -320,7 +403,7 @@ const CheckoutContent: React.FC = () => {
                     <p className="text-[12px] text-gray-600">Qty {item.quantity}</p>
                   </div>
                   <div className="text-[14px] font-medium text-black">
-                    {item.price}
+                    {typeof item.price === 'number' ? `$${item.price.toFixed(2)}` : item.price}
                   </div>
                 </div>
               ))}

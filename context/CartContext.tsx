@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 interface CartItem {
   id: string;
   name: string;
-  price: string;
+  price: string | number;
   image: string;
   quantity: number;
 }
@@ -65,7 +65,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const addToCart = (item: Omit<CartItem, 'quantity'>, quantity: number) => {
     setCart((prevCart) => {
       const existingItem = prevCart.find((cartItem) => cartItem.id === item.id);
-      
+
       if (existingItem) {
         return prevCart.map((cartItem) =>
           cartItem.id === item.id
@@ -73,7 +73,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             : cartItem
         );
       }
-      
+
       return [...prevCart, { ...item, quantity }];
     });
   };
@@ -87,7 +87,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       removeFromCart(id);
       return;
     }
-    
+
     setCart((prevCart) =>
       prevCart.map((item) =>
         item.id === id ? { ...item, quantity } : item
@@ -101,7 +101,9 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const getCartTotal = () => {
     const total = cart.reduce((sum, item) => {
-      const price = parseFloat(item.price.replace('$', ''));
+      const price = typeof item.price === 'string'
+        ? parseFloat(item.price.replace('$', ''))
+        : Number(item.price);
       return sum + price * item.quantity;
     }, 0);
     return `$${total.toFixed(2)}`;

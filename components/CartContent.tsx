@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 interface CartItem {
   id: string;
   name: string;
-  price: string;
+  price: string | number;
   image: string;
   quantity: number;
 }
@@ -46,7 +46,11 @@ const CartContent: React.FC = () => {
 
   const getCartTotal = () => {
     const total = cart.reduce((sum, item) => {
-      const price = parseFloat(item.price.replace('$', ''));
+      // Handle price whether it's a string (with $) or a number
+      const price = typeof item.price === 'string'
+        ? parseFloat(item.price.replace('$', ''))
+        : Number(item.price);
+
       return sum + price * item.quantity;
     }, 0);
     return `$${total.toFixed(2)}`;
@@ -114,7 +118,7 @@ const CartContent: React.FC = () => {
                   {/* Price */}
                   <div className="w-16 md:w-20 text-right">
                     <p className="text-[14px] md:text-[16px] text-black font-medium">
-                      {item.price}
+                      {typeof item.price === 'number' ? `$${item.price.toFixed(2)}` : item.price}
                     </p>
                   </div>
 
